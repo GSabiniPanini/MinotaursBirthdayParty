@@ -29,8 +29,6 @@ using namespace std;
 mutex mtx;
 
 atomic<bool> cupcakeAvailable(true);
-// make an array of size N to keep track of the guests that have visited the labyrinth
-// when a guest visits the labyrinth, set the corresponding index to true
 array<bool, 5> guestsVisited = { false, false, false, false, false };
 
 void eatCupcake(int guestID)
@@ -49,6 +47,9 @@ void Labyrinth(int guestID)
 {
 	// no locks needed here, as the minotaur is the only one who can invite the guests
 	cout << "Guest " << guestID << " has entered the labyrinth" << endl;
+
+	// simulate exploring the labyrinth
+	this_thread::sleep_for(chrono::seconds(1 + rand() % 3));
 
 	// if the cupcake is available, eat it, else request a new one
 	if (cupcakeAvailable)
@@ -70,12 +71,23 @@ void Labyrinth(int guestID)
 	guestsVisited[guestID] = true;
 }
 
+bool checkVisited()
+{
+	for (int i = 0; i < N; i++)
+	{
+		if (!guestsVisited[i])
+			return false;
+	}
+	return true;
+}
+
 void printVisited(bool flag)
 {
+	// should always be true
 	if (flag)
 		cout << "All guests have visited the labyrinth at least once" << endl;
 	else
-		cout << "Not every guest has visited the labyrinth" << endl;
+		cout << "What did you do, not every guest has visited the labyrinth?" << endl;
 }
 
 int main()
@@ -86,30 +98,16 @@ int main()
 	
 	do
 	{
-		// randomly pick a guest to enter the labyrinth
+		// randomly pick a guest to enter the labyrinth and waits for them to finish
 		guestID = rand() % N;
 		guests[guestID] = thread(Labyrinth, guestID);
-
-		for (int i = 0; i < N; i++)
-		{
-			if (!guestsVisited[i])
-			{
-				allVisited = false;
-				break;
-			}
-		}
+		guests[guestID].join();
+		
+		// check if all guests have visited the labyrinth
+		allVisited = checkVisited();
 	} while (!allVisited)
-
-	for (int i = 0; i < N; i++)
-	{
-		guests[i] = thread(Labyrinth, i);
-	}
 	
-	for (thread& t : guests)
-	{
-		t.join();
-	}
-	
+	// exits after all guests have visited the labyrinth
 	printVisited(allVisited);
 
 	return 0;
