@@ -28,8 +28,15 @@
 using namespace std;
 mutex mtx;
 
+// Minotaur's Labyrinth functions
 atomic<bool> cupcakeAvailable(true);
+atomic<bool> showroomAvailable(true);
+// an array signifying how many times a cupcake has been eaten in real time application,
+// one of the guests will watch how many times the servant has gone to replace a cupcake.
+// if the servant has gone to replace a cupcake N-1 times, then all guests have visited the labyrinth
 array<bool, 5> guestsVisited = { false, false, false, false, false };
+// an array for overview of which guests have visited the showroom
+array<bool, 5> showroomVisited = { false, false, false, false, false };
 
 void eatCupcake(int guestID)
 {
@@ -43,6 +50,21 @@ void requestCupcake(int guestID)
 	cupcakeAvailable = true;
 }
 
+void leaveCupcake(int guestID)
+{
+	cout << "Guest " << guestID << " has left the cupcake" << endl;
+}
+
+bool checkGuestsVisited()
+{
+	for (int i = 0; i < N; i++)
+	{
+		if (!guestsVisited[i])
+			return false;
+	}
+	return true;
+}
+
 void Labyrinth(int guestID)
 {
 	// no locks needed here, as the minotaur is the only one who can invite the guests
@@ -51,34 +73,40 @@ void Labyrinth(int guestID)
 	// simulate exploring the labyrinth
 	this_thread::sleep_for(chrono::seconds(1 + rand() % 3));
 
-	// if the cupcake is available, eat it, else request a new one
-	if (cupcakeAvailable)
+	// Only eat a cupcake once
+	if (!guestsVisited[guestID])
 	{
-		mtx.lock();
-		eatCupcake(guestID);
-		mtx.unlock();
+		// if the cupcake is available, eat it, else request a new one
+		if (cupcakeAvailable)
+		{
+			mtx.lock();
+			eatCupcake(guestID);
+			mtx.unlock();
+		}
+		else
+		{
+			mtx.lock();
+			// request THEN eat it :)
+			requestCupcake(guestID);
+			eatCupcake(guestID);
+			mtx.unlock();
+		}
 	}
 	else
 	{
 		mtx.lock();
-		// request THEN eat it :)
-		requestCupcake(guestID);
-		eatCupcake(guestID);
+		if (cupcakeAvailable)
+			leaveCupcake(guestID);
+		else
+		{
+			requestCupcake(guestID);
+			leaveCupcake(guestID);
+		}
 		mtx.unlock();
 	}
 
 	// set the corresponding index to true
 	guestsVisited[guestID] = true;
-}
-
-bool checkVisited()
-{
-	for (int i = 0; i < N; i++)
-	{
-		if (!guestsVisited[i])
-			return false;
-	}
-	return true;
 }
 
 void printVisited(bool flag)
@@ -90,26 +118,79 @@ void printVisited(bool flag)
 		cout << "What did you do, not every guest has visited the labyrinth?" << endl;
 }
 
+// Crystal Vase functions
+
+void printShowroom()
+{
+	for (int i = 0; i < N; i++)
+	{
+		if (showroomVisited[i])
+			cout << "Guest " << i << " has visited the showroom" << endl;
+	}
+}
+
+void Showroom(int guestID)
+{
+	// a time randomizer to somewhat emulate making the decision of seeing the showroom
+	this_thread::sleep_for(chrono::seconds(1 + rand() % 5));
+
+	mtx.lock();
+	if (showroomAvailable)
+	{
+		cout << "Guest " << guestID << " has entered the showroom" << endl;
+		showroomAvailable = false;
+		mtx.unlock();
+
+		// simulate looking at the vase
+		this_thread::sleep_for(chrono::seconds(1 + rand() % 3));
+
+		mtx.lock();
+		showroomAvailable = true;
+		cout << "Guest " << guestID << " has left the showroom" << endl;
+	}
+	else
+	{
+		cout << "Guest " << guestID << " has found the room busy..." << endl;
+	}
+	mtx.unlock();
+}
+
 int main()
 {
-	thread* guests = new thread[N];
+	thread labyrinthGuests[N];
 	bool allVisited = true;
-	int guestID;
+	int guestID, cupcakesReplaced = 0;
 	
+	// Minotaur's Birthday Party
 	do
 	{
 		// randomly pick a guest to enter the labyrinth and waits for them to finish
 		guestID = rand() % N;
-		guests[guestID] = thread(Labyrinth, guestID);
-		guests[guestID].join();
+		labyrinthGuests[guestID] = thread(Labyrinth, guestID);
+		labyrinthGuests[guestID].join();
 		
 		// check if all guests have visited the labyrinth
-		allVisited = checkVisited();
-	} while (!allVisited)
+		allVisited = checkGuestsVisited();
+	} while (!allVisited);
 	
 	// exits after all guests have visited the labyrinth
 	printVisited(allVisited);
 
+	// Minotaur's Crystal Vase
+	thread showroomGuests[N];
+	
+	for (int i = 0; i < N; i++)
+	{
+		showroomGuests[i] = thread(Showroom, i);
+	}
+
+	for (int i = 0; i < N; i++)
+	{
+		showroomGuests[i].join();
+	}
+
+	printShowroom();
+	
 	return 0;
 }
 
