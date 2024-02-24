@@ -1,7 +1,7 @@
 # MinotaursBirthdayParty
 
 Proof of correctness:
-The program runs without error. The minotaur maze doesnt finish until every guest has visited, and there is no real communication within guests
+The program runs without error. The minotaur maze doesnt finish until every guest has visited, and there is no real communication within guests. The second part functions at a baseline level using the suggested implementation. Not everyone visits the showroom, but everyone has the opportunity to do so
 
 Efficiency:
 The first part of the program runs in around O(N) time, the solution is largely limited by how long it will take for the random number generator to hit every guest.
